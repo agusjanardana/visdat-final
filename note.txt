@@ -1,0 +1,7 @@
+Slider diubah :
+  - dapet date range 
+  - date range nya kan X 
+  - y nya itu data dari Positive / negative diantara tanggal sama region yang dipilih
+
+dropdown : 
+ milih pos/ neg dan region
