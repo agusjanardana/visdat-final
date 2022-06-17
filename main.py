@@ -14,104 +14,112 @@ states_list = data.State.unique().tolist()
 
 # Make a color mapper: color_mapper
 color_mapper = CategoricalColorMapper(factors=states_list, palette=Spectral6)
-data['Negative'] = pd.to_numeric(data['Negative'],errors='coerce')
+
+# change negative data type to float and change NaN to 0
+data['Negative'] = pd.to_numeric(data['Negative'], errors='coerce')
 data['Negative'] = data['Negative'].fillna(0)
 data['Positive'] = data['Positive'].fillna(0)
 
 # change date column to date type
 data['Date'] = pd.to_datetime(data['Date'])
+
+# get date period per month
 data_month_year = data['Date'].dt.to_period('M').astype(str)
-data_month_year =  pd.to_datetime(data_month_year)
+data_month_year = pd.to_datetime(data_month_year)
+
+# get unique date
 date_unique = data_month_year.unique()
+date_unique.sort()
+
+# data for range sliders
 number_dates = len(list(date_unique))
 start_dates = date_unique.copy()
 end_dates = date_unique.copy()
 
+# initialize data for plot
 data_grouped_by_state = data.loc[data['State'] == states_list[0]]
-mask = (data_grouped_by_state['Date'] >= start_dates[0]) & (data_grouped_by_state['Date'] <= end_dates[len(end_dates)-1] )
-data_x = data_grouped_by_state.loc[mask]
-print(data_x)
-min_date = min(data['Date'])
+mask = (data_grouped_by_state['Date'] >= start_dates[0]) & (
+    data_grouped_by_state['Date'] <= end_dates[len(end_dates)-1])
+data_plot = data_grouped_by_state.loc[mask]
 
-
-# list wilayah
-# # array(['Andaman And Nicobar', 'Andhra Pradesh', 'Arunachal Pradesh',
-#        'Assam', 'Bihar', 'Chandigarh', 'Chhattisgarh',
-#        'Dadra And Nagar Haveli And Daman And Diu', 'Delhi', 'Goa',
-#        'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu And Kashmir',
-#        'Jharkhand', 'Karnataka', 'Kerala', 'Ladakh', 'Lakshadweep',
-#        'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
-#        'Nagaland', 'Odisha', 'Puducherry', 'Punjab', 'Rajasthan',
-#        'Sikkim', 'Tamil Nadu', 'Telengana', 'Tripura', 'Uttar Pradesh',
-#        'Uttarakhand', 'West Bengal']
-       
-
-# Make the ColumnDataSource: source
-# source = ColumnDataSource(data={
-#     'x'       : data.loc[data['Date'] == min_date].Date, 
-#     'y'       : data.loc[data['Date'] == min_date].Negative, 
-#     'State'     : data.loc[data['Date'] == min_date].State,
-# })
 source = ColumnDataSource(data={
-    'x'       : data_x.Date, 
-    'y'       : data_x.Negative,
-    'State'   : data_x.State 
+    'x': data_plot.Date,
+    'y': data_plot.Negative,
+    'State': data_plot.State
 })
 
 # Create the figure: plot
-plot = figure(title="Chart", x_axis_label='Tahun', y_axis_label='Jumlah')
+plot = figure(title="Chart", x_axis_label='Tahun',
+              y_axis_label='Jumlah', x_axis_type='datetime')
 
 # Add a circle glyph to the figure p
 plot.line(source=source, x='x', y='y', line_width=1)
 
-# Set the legend and axis attributes
-# plot.legend.location = 'bottom_left'
+plot.left[0].formatter.use_scientific = False
 
-# Define the callback function: update_plot
+
 def update_plot(attr, old, new):
-    # set the `yr` name to `slider.value` and `source.data = new_data`
-    # yr = slider.value
-    # x = x_select.value
-    y = y_select.value
-    # Label axes of plot
-    plot.xaxis.axis_label = x
-    plot.yaxis.axis_label = y
-    # new data
+    slidervalue = range_slider.value
+    startdate = start_dates[slidervalue[0]]
+    enddate_index = slidervalue[1]
+    if slidervalue[1] == len(end_dates):
+        enddate_index = slidervalue[1]-1
+    enddate = end_dates[enddate_index]
+
+    posneg = positive_negative_select.value
+    selected_state = states_select.value
+
+    data_by_state = data.loc[data['State'] == selected_state]
+    mask = (data_by_state['Date'] >= startdate) & (
+        data_by_state['Date'] <= enddate)
+    data_plot = data_by_state.loc[mask]
     new_data = {
-    'x'       : data.loc[yr][x],
-    'y'       : data.loc[yr][y],
-    'country' : data.loc[yr].Country,
-    'pop'     : (data.loc[yr].population / 20000000) + 2,
-    'region'  : data.loc[yr].region,
+        'x': data_plot.Date,
+        'y': data_plot[posneg],
     }
     source.data = new_data
-    
-    # Add title to figure: plot.title.text
-    plot.title.text = 'Gapminder data for %d' % yr
 
 
+range_slider = RangeSlider(start=0, end=number_dates, value=(
+    0, number_dates), step=1, title="",  tooltips=False, width=600, show_value=False)
 
-range_slider = RangeSlider(start=0, end=number_dates, value=(0, number_dates), step=1, title="",  tooltips = False, width=600, show_value = False)
-div = Div(text = "Date Range: <b>" + str(start_dates[range_slider.value[0]]) + ' . . . ' + str(end_dates[range_slider.value[1]-1]) + '</b>', render_as_text = False, width = 575)
+div = Div(text="Date Range: <b>" + pd.to_datetime(start_dates[range_slider.value[0]]).strftime('%Y-%m-%d') + ' . . . ' + pd.to_datetime(
+    end_dates[range_slider.value[1]-1]).strftime('%Y-%m-%d') + '</b>', render_as_text=False, width=575)
 
 code = '''
-range = Math.round(Number(cb_obj.value[1] - cb_obj.value[0]), 10)
+var range = Math.round(Number(cb_obj.value[1] - cb_obj.value[0]), 10)
 range = range < 10 ? '0' + range : range
-div.text = "Date Range: <b>" + start_dates[Math.round(cb_obj.value[0], 10)] + '&nbsp;.&nbsp;.&nbsp;.&nbsp;' + end_dates[Math.round(cb_obj.value[1], 10) + -1] + '</b>'
+console.log(start_dates[Math.round(cb_obj.value[0], 10)], end_dates[Math.round(cb_obj.value[1], 10) + -1])
+var start = new Date(start_dates[Math.round(cb_obj.value[0], 10)]).toISOString().split('T')[0]
+var end = new Date(end_dates[Math.round(cb_obj.value[1], 10) + -1]).toISOString().split('T')[0]
+div.text = "Date Range: <b>" + start + '&nbsp;.&nbsp;.&nbsp;.&nbsp;' + end + '</b>'
 '''
 
-range_slider.js_on_change('value_throttled', CustomJS(args = {'div': div, 'start_dates': start_dates, 'end_dates': end_dates}, code=code))
+# range_slider.js_on_change('value_throttled', test)
+range_slider.js_on_change('value_throttled', CustomJS(
+    args={'div': div, 'start_dates': start_dates, 'end_dates': end_dates}, code=code))
 
+
+range_slider.on_change('value', update_plot)
 
 # Create a dropdown Select widget for the y data: y_select
-y_select = Select(
+positive_negative_select = Select(
     options=['Negative', 'Positive'],
     value='Negative',
-    title='y-axis data'
+    title='Positive/Negative'
 )
 # Attach the update_plot callback to the 'value' property of y_select
-y_select.on_change('value', update_plot)
-    
+positive_negative_select.on_change('value', update_plot)
+
+states_select = Select(
+    options=states_list,
+    value=states_list[0],
+    title='State'
+)
+
+states_select.on_change('value', update_plot)
+
 # Create layout and add to current document
-layout = column(row(widgetbox(range_slider,  y_select), plot)) 
+layout = column(
+    row(widgetbox(div, range_slider,  positive_negative_select, states_select), plot))
 curdoc().add_root(layout)
