@@ -1,4 +1,7 @@
+from cmath import pi
 import pandas as pd
+from bokeh.palettes import Category20c
+from bokeh.transform import cumsum
 from bokeh.io import curdoc
 from bokeh.plotting import figure
 from bokeh.models import HoverTool, ColumnDataSource
@@ -119,7 +122,52 @@ states_select = Select(
 
 states_select.on_change('value', update_plot)
 
+# layout piechart
+
+
+x = {
+    'Positive': data_plot['Positive'].sum(),
+    'Negative': data_plot['Negative'].sum(),
+}
+
+chart_colors = ['#44e5e2', '#e29e44', '#e244db',
+                '#d8e244', '#eeeeee', '#56e244', '#007bff', 'black']
+
+data_pie = pd.Series(x).reset_index(name='value').rename(columns={'index': 'country'})
+data_pie['angle'] = data_pie['value']/data_pie['value'].sum() * 2*pi
+data_pie['color'] = chart_colors[:len(x)]
+
+
+p = figure(height=350, title="Pie Chart", toolbar_location=None,
+           tools="hover", tooltips="@country: @value", x_range=(-0.5, 1.0))
+
+p.wedge(x=0, y=1, radius=0.4,
+        start_angle=cumsum('angle', include_zero=True), end_angle=cumsum('angle'),
+        line_color="white", color='color', legend_field='country', source=data_pie)
+
+# callback
+def update_plot(attr, old, new):
+    selected_state = states_select.value
+
+    data_by_state = data.loc[data['State'] == selected_state]
+    
+    new_data = {
+        'Positive': data_by_state['Positive'].sum(),
+        'Negative': data_by_state['Negative'].sum(),
+    }
+    data_pie = pd.Series(new_data).reset_index(name='value').rename(columns={'index': 'country'})
+    data_pie['angle'] = data_pie['value']/data_pie['value'].sum() * 2*pi
+    data_pie['color'] = chart_colors[:len(new_data)]
+    
+states_select_pie = Select(
+    options=states_list,
+    value=states_list[0],
+    title='State'
+)
+
+states_select_pie.on_change('value', update_plot)
 # Create layout and add to current document
 layout = column(
-    row(widgetbox(div, range_slider,  positive_negative_select, states_select), plot))
+    row(widgetbox(div, range_slider,  positive_negative_select, states_select), plot),
+    row(widgetbox(states_select_pie),p))
 curdoc().add_root(layout)
