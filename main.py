@@ -133,9 +133,12 @@ x = {
 chart_colors = ['#44e5e2', '#e29e44', '#e244db',
                 '#d8e244', '#eeeeee', '#56e244', '#007bff', 'black']
 
-data_pie = pd.Series(x).reset_index(name='value').rename(columns={'index': 'country'})
+data_pie = pd.Series(x).reset_index(
+    name='value').rename(columns={'index': 'country'})
 data_pie['angle'] = data_pie['value']/data_pie['value'].sum() * 2*pi
 data_pie['color'] = chart_colors[:len(x)]
+
+source_pie = ColumnDataSource(data_pie)
 
 
 p = figure(height=350, title="Pie Chart", toolbar_location=None,
@@ -143,31 +146,37 @@ p = figure(height=350, title="Pie Chart", toolbar_location=None,
 
 p.wedge(x=0, y=1, radius=0.4,
         start_angle=cumsum('angle', include_zero=True), end_angle=cumsum('angle'),
-        line_color="white", color='color', legend_field='country', source=data_pie)
+        line_color="white", color='color', legend_field='country', source=source_pie)
 
 # callback
-def update_plot(attr, old, new):
-    selected_state = states_select.value
+
+
+def update_pie_plot(attr, old, new):
+    selected_state = states_select_pie.value
 
     data_by_state = data.loc[data['State'] == selected_state]
-    
-    new_data = {
+    x = {
         'Positive': data_by_state['Positive'].sum(),
         'Negative': data_by_state['Negative'].sum(),
     }
-    data_pie = pd.Series(new_data).reset_index(name='value').rename(columns={'index': 'country'})
+
+    data_pie = pd.Series(x).reset_index(
+        name='value').rename(columns={'index': 'country'})
+
     data_pie['angle'] = data_pie['value']/data_pie['value'].sum() * 2*pi
-    data_pie['color'] = chart_colors[:len(new_data)]
-    
+    data_pie['color'] = chart_colors[:len(x)]
+    source_pie.data.update(ColumnDataSource(data_pie).data)
+
+
 states_select_pie = Select(
     options=states_list,
     value=states_list[0],
     title='State'
 )
 
-states_select_pie.on_change('value', update_plot)
+states_select_pie.on_change('value', update_pie_plot)
 # Create layout and add to current document
 layout = column(
     row(widgetbox(div, range_slider,  positive_negative_select, states_select), plot),
-    row(widgetbox(states_select_pie),p))
+    row(widgetbox(states_select_pie), p))
 curdoc().add_root(layout)
